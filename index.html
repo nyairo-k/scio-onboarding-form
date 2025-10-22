@@ -80,30 +80,11 @@
         </form>
     </div>
 
-   <!-- Load Supabase library FIRST -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    <!-- Your custom script SECOND -->
+    <!-- Your custom script, now sending to proxy server -->
     <script>
-        // Wrap all your application logic inside DOMContentLoaded
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOMContentLoaded event fired. Supabase CDN script should be loaded now.');
-
-            // Diagnostic check again
-            if (typeof Supabase === 'undefined') {
-                console.error('ERROR (DOMContentLoaded): Supabase object is still undefined!');
-                // Stop further execution if Supabase isn't ready
-                document.getElementById('submissionMessage').textContent = 'Critical error: Supabase library failed to load. Please try again later.';
-                document.getElementById('submissionMessage').style.color = 'red';
-                return; // Exit the function
-            } else {
-                console.log('SUCCESS (DOMContentLoaded): Supabase object is defined!', Supabase);
-            }
-
-            // REPLACE WITH YOUR SUPERBASE PROJECT URL AND ANON KEY
-            const SUPABASE_URL = 'https://pvywobxbuwpybsvegzys.supabase.co'; // Your actual URL
-            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2eXdvYnhidXdweWJzdmVnenlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg1MzY3MzQsImV4cCI6MjA3NDExMjczNH0.f5R0f1o75WQ-5tQXcZ3ckkc5Fs_WiVEsXq-EOpxOhGg'; // Your actual key
-            const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            console.log('DOMContentLoaded event fired. Frontend logic starting.');
 
             const form = document.getElementById('expertApplicationForm');
             const submitButton = document.getElementById('submitButton');
@@ -114,6 +95,11 @@
             const workedScioNo = document.getElementById('workedScioNo');
             const scioProjectDetailsContainer = document.getElementById('scioProjectDetailsContainer');
             const submissionMessage = document.getElementById('submissionMessage');
+
+            // IMPORTANT: Replace this with the URL of your deployed proxy server (e.g., from Vercel/Render/Fly.io)
+            // For local testing, it might be 'http://localhost:3000/api/submit-application'
+            // When deploying the backend, it will be something like 'https://YOUR_PROXY_SERVER_URL.com/api/submit-application'
+            const PROXY_SERVER_URL = 'http://localhost:3000/api/submit-application'; // CHANGE THIS FOR DEPLOYMENT!
 
             function toggleSubmitButton() {
                 if (consentDataPrivacy.checked && consentAiAnalysis.checked) {
@@ -151,68 +137,39 @@
                 submissionMessage.style.color = 'black';
                 submitButton.disabled = true; // Prevent double submission
 
-                const fullName = document.getElementById('fullName').value;
-                const email = document.getElementById('email').value;
-                const linkedinUrl = document.getElementById('linkedinUrl').value;
-                const cvFile = document.getElementById('cvFile').files[0];
-                const howHeard = document.getElementById('howHeard').value;
-                const workedWithScio = document.querySelector('input[name="workedScio"]:checked').value === 'true';
-                const scioProjectDetails = workedWithScio ? document.getElementById('scioProjectDetails').value : null;
-
-                if (!cvFile) {
-                    submissionMessage.textContent = 'Please upload your CV.';
-                    submissionMessage.style.color = 'red';
-                    submitButton.disabled = false;
-                    return;
+                const formData = new FormData();
+                formData.append('fullName', document.getElementById('fullName').value);
+                formData.append('email', document.getElementById('email').value);
+                formData.append('linkedinUrl', document.getElementById('linkedinUrl').value);
+                formData.append('cvFile', document.getElementById('cvFile').files[0]);
+                formData.append('howHeard', document.getElementById('howHeard').value);
+                formData.append('workedScio', document.querySelector('input[name="workedScio"]:checked').value);
+                if (document.querySelector('input[name="workedScio"]:checked').value === 'true') {
+                    formData.append('scioProjectDetails', document.getElementById('scioProjectDetails').value);
                 }
+                formData.append('consentDataPrivacy', consentDataPrivacy.checked);
+                formData.append('consentAiAnalysis', consentAiAnalysis.checked);
 
                 try {
-                    // 1. Upload CV to Superbase Storage
-                    const safeEmail = email.replace(/[^a-zA-Z0-9]/g, '_');
-                    const fileName = `${safeEmail}_${Date.now()}_${cvFile.name}`;
+                    const response = await fetch(PROXY_SERVER_URL, {
+                        method: 'POST',
+                        body: formData // FormData automatically sets 'Content-Type': 'multipart/form-data'
+                    });
 
-                    const { data: uploadData, error: uploadError } = await supabase.storage
-                        .from('expert-cvs')
-                        .upload(fileName, cvFile, {
-                            cacheControl: '3600',
-                            upsert: false
-                        });
+                    const result = await response.json();
 
-                    if (uploadError) throw uploadError;
-
-                    const cvStoragePath = uploadData.path;
-
-                    // 2. Insert application data into Superbase Table
-                    const { error: insertError } = await supabase
-                        .from('expert_applications')
-                        .insert([
-                            {
-                                full_name: fullName,
-                                email: email,
-                                linkedin_url: linkedinUrl,
-                                cv_storage_path: cvStoragePath,
-                                how_heard: howHeard,
-                                worked_with_scio: workedWithScio,
-                                scio_project_details: scioProjectDetails,
-                                consent_data_privacy: consentDataPrivacy.checked,
-                                consent_ai_analysis: consentAiAnalysis.checked
-                            }
-                        ]);
-
-                    if (insertError) throw insertError;
+                    if (!response.ok) {
+                        throw new Error(result.error || 'Unknown server error');
+                    }
 
                     submissionMessage.textContent = 'Application submitted successfully! We will be in touch shortly.';
                     submissionMessage.style.color = 'green';
-                    form.reset();
-                    toggleSubmitButton();
-                    toggleScioDetails();
+                    form.reset(); // Clear the form
+                    toggleSubmitButton(); // Re-disable submit button until consents are checked again
+                    toggleScioDetails(); // Hide project details again
                 } catch (error) {
-                    console.error('Submission error:', error.message);
-                    let userErrorMessage = `Error submitting application: ${error.message}. Please try again.`;
-                    if (error.message.includes('duplicate key value violates unique constraint')) {
-                        userErrorMessage = 'It looks like you\'ve already applied with this email address. Please contact us if you need to update your application.';
-                    }
-                    submissionMessage.textContent = userErrorMessage;
+                    console.error('Frontend submission error:', error.message);
+                    submissionMessage.textContent = `Error submitting application: ${error.message}. Please try again.`;
                     submissionMessage.style.color = 'red';
                 } finally {
                     submitButton.disabled = false;
