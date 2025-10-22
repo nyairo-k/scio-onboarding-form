@@ -80,141 +80,145 @@
         </form>
     </div>
 
-    <!-- Load Supabase library FIRST -->
- <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+   <!-- Load Supabase library FIRST -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <!-- Your custom script SECOND -->
     <script>
-        console.log('Supabase CDN script loaded, trying to access Supabase object...');
-        // Check if Supabase object is defined right before using it
-        if (typeof Supabase === 'undefined') {
-            console.error('ERROR: Supabase object is still undefined here!');
-            // You might want to halt execution or show an error message on the page
-        } else {
-            console.log('SUCCESS: Supabase object is defined!', Supabase);
-        }
+        // Wrap all your application logic inside DOMContentLoaded
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOMContentLoaded event fired. Supabase CDN script should be loaded now.');
 
-        // REPLACE WITH YOUR SUPERBASE PROJECT URL AND ANON KEY
-        const SUPABASE_URL = 'https://pvywobxbuwpybsvegzys.supabase.co'; // Your actual URL
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2eXdvYnhidXdweWJzdmVnenlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg1MzY3MzQsImV4cCI6MjA3NDExMjczNH0.f5R0f1o75WQ-5tQXcZ3ckkc5Fs_WiVEsXq-EOpxOhGg'; // Your actual key
-        const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); // This is line 91 (approx)
-
-        // ... (rest of your existing script code) ...
-        const form = document.getElementById('expertApplicationForm');
-        const submitButton = document.getElementById('submitButton');
-        const consentDataPrivacy = document.getElementById('consentDataPrivacy');
-        const consentAiAnalysis = document.getElementById('consentAiAnalysis');
-        const consentReminder = document.getElementById('consentReminder');
-        const workedScioYes = document.getElementById('workedScioYes');
-        const workedScioNo = document.getElementById('workedScioNo');
-        const scioProjectDetailsContainer = document.getElementById('scioProjectDetailsContainer');
-        const submissionMessage = document.getElementById('submissionMessage');
-
-        function toggleSubmitButton() {
-            if (consentDataPrivacy.checked && consentAiAnalysis.checked) {
-                submitButton.disabled = false;
-                consentReminder.style.display = 'none';
+            // Diagnostic check again
+            if (typeof Supabase === 'undefined') {
+                console.error('ERROR (DOMContentLoaded): Supabase object is still undefined!');
+                // Stop further execution if Supabase isn't ready
+                document.getElementById('submissionMessage').textContent = 'Critical error: Supabase library failed to load. Please try again later.';
+                document.getElementById('submissionMessage').style.color = 'red';
+                return; // Exit the function
             } else {
-                submitButton.disabled = true;
-                consentReminder.style.display = 'block';
-            }
-        }
-
-        function toggleScioDetails() {
-            if (workedScioYes.checked) {
-                scioProjectDetailsContainer.classList.remove('hidden');
-                scioProjectDetailsContainer.querySelector('textarea').setAttribute('required', 'required');
-            } else {
-                scioProjectDetailsContainer.classList.add('hidden');
-                scioProjectDetailsContainer.querySelector('textarea').removeAttribute('required');
-            }
-        }
-
-        consentDataPrivacy.addEventListener('change', toggleSubmitButton);
-        consentAiAnalysis.addEventListener('change', toggleSubmitButton);
-        workedScioYes.addEventListener('change', toggleScioDetails);
-        workedScioNo.addEventListener('change', toggleScioDetails);
-
-        // Initial state
-        toggleSubmitButton();
-        toggleScioDetails();
-
-
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            submissionMessage.textContent = 'Submitting your application...';
-            submissionMessage.style.color = 'black';
-            submitButton.disabled = true; // Prevent double submission
-
-            const fullName = document.getElementById('fullName').value;
-            const email = document.getElementById('email').value;
-            const linkedinUrl = document.getElementById('linkedinUrl').value;
-            const cvFile = document.getElementById('cvFile').files[0];
-            const howHeard = document.getElementById('howHeard').value;
-            const workedWithScio = document.querySelector('input[name="workedScio"]:checked').value === 'true';
-            const scioProjectDetails = workedWithScio ? document.getElementById('scioProjectDetails').value : null;
-
-            if (!cvFile) {
-                submissionMessage.textContent = 'Please upload your CV.';
-                submissionMessage.style.color = 'red';
-                submitButton.disabled = false;
-                return;
+                console.log('SUCCESS (DOMContentLoaded): Supabase object is defined!', Supabase);
             }
 
-            try {
-                // 1. Upload CV to Superbase Storage
-                // Replace special characters in email for a safer file name
-                const safeEmail = email.replace(/[^a-zA-Z0-9]/g, '_');
-                const fileName = `${safeEmail}_${Date.now()}_${cvFile.name}`;
-                
-                const { data: uploadData, error: uploadError } = await supabase.storage
-                    .from('expert-cvs')
-                    .upload(fileName, cvFile, {
-                        cacheControl: '3600',
-                        upsert: false // Set to true if you want to allow overwriting files with the same name
-                    });
+            // REPLACE WITH YOUR SUPERBASE PROJECT URL AND ANON KEY
+            const SUPABASE_URL = 'https://pvywobxbuwpybsvegzys.supabase.co'; // Your actual URL
+            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2eXdvYnhidXdweWJzdmVnenlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg1MzY3MzQsImV4cCI6MjA3NDExMjczNH0.f5R0f1o75WQ-5tQXcZ3ckkc5Fs_WiVEsXq-EOpxOhGg'; // Your actual key
+            const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-                if (uploadError) throw uploadError;
+            const form = document.getElementById('expertApplicationForm');
+            const submitButton = document.getElementById('submitButton');
+            const consentDataPrivacy = document.getElementById('consentDataPrivacy');
+            const consentAiAnalysis = document.getElementById('consentAiAnalysis');
+            const consentReminder = document.getElementById('consentReminder');
+            const workedScioYes = document.getElementById('workedScioYes');
+            const workedScioNo = document.getElementById('workedScioNo');
+            const scioProjectDetailsContainer = document.getElementById('scioProjectDetailsContainer');
+            const submissionMessage = document.getElementById('submissionMessage');
 
-                const cvStoragePath = uploadData.path; // This gives us the path within the bucket
-
-                // 2. Insert application data into Superbase Table
-                const { error: insertError } = await supabase
-                    .from('expert_applications')
-                    .insert([
-                        {
-                            full_name: fullName,
-                            email: email,
-                            linkedin_url: linkedinUrl,
-                            cv_storage_path: cvStoragePath, // Store the path within the bucket
-                            how_heard: howHeard,
-                            worked_with_scio: workedWithScio,
-                            scio_project_details: scioProjectDetails,
-                            consent_data_privacy: consentDataPrivacy.checked,
-                            consent_ai_analysis: consentAiAnalysis.checked
-                        }
-                    ]);
-
-                if (insertError) throw insertError;
-
-                submissionMessage.textContent = 'Application submitted successfully! We will be in touch shortly.';
-                submissionMessage.style.color = 'green';
-                form.reset(); // Clear the form
-                toggleSubmitButton(); // Re-disable submit button until consents are checked again
-                toggleScioDetails(); // Hide project details again
-            } catch (error) {
-                console.error('Submission error:', error.message);
-                // More user-friendly error messages for specific Superbase errors
-                let userErrorMessage = `Error submitting application: ${error.message}. Please try again.`;
-                if (error.message.includes('duplicate key value violates unique constraint')) {
-                    userErrorMessage = 'It looks like you\'ve already applied with this email address. Please contact us if you need to update your application.';
+            function toggleSubmitButton() {
+                if (consentDataPrivacy.checked && consentAiAnalysis.checked) {
+                    submitButton.disabled = false;
+                    consentReminder.style.display = 'none';
+                } else {
+                    submitButton.disabled = true;
+                    consentReminder.style.display = 'block';
                 }
-                submissionMessage.textContent = userErrorMessage;
-                submissionMessage.style.color = 'red';
-            } finally {
-                submitButton.disabled = false; // Re-enable in case of client-side error before fetch
             }
-        });
+
+            function toggleScioDetails() {
+                if (workedScioYes.checked) {
+                    scioProjectDetailsContainer.classList.remove('hidden');
+                    scioProjectDetailsContainer.querySelector('textarea').setAttribute('required', 'required');
+                } else {
+                    scioProjectDetailsContainer.classList.add('hidden');
+                    scioProjectDetailsContainer.querySelector('textarea').removeAttribute('required');
+                }
+            }
+
+            consentDataPrivacy.addEventListener('change', toggleSubmitButton);
+            consentAiAnalysis.addEventListener('change', toggleSubmitButton);
+            workedScioYes.addEventListener('change', toggleScioDetails);
+            workedScioNo.addEventListener('change', toggleScioDetails);
+
+            // Initial state
+            toggleSubmitButton();
+            toggleScioDetails();
+
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                submissionMessage.textContent = 'Submitting your application...';
+                submissionMessage.style.color = 'black';
+                submitButton.disabled = true; // Prevent double submission
+
+                const fullName = document.getElementById('fullName').value;
+                const email = document.getElementById('email').value;
+                const linkedinUrl = document.getElementById('linkedinUrl').value;
+                const cvFile = document.getElementById('cvFile').files[0];
+                const howHeard = document.getElementById('howHeard').value;
+                const workedWithScio = document.querySelector('input[name="workedScio"]:checked').value === 'true';
+                const scioProjectDetails = workedWithScio ? document.getElementById('scioProjectDetails').value : null;
+
+                if (!cvFile) {
+                    submissionMessage.textContent = 'Please upload your CV.';
+                    submissionMessage.style.color = 'red';
+                    submitButton.disabled = false;
+                    return;
+                }
+
+                try {
+                    // 1. Upload CV to Superbase Storage
+                    const safeEmail = email.replace(/[^a-zA-Z0-9]/g, '_');
+                    const fileName = `${safeEmail}_${Date.now()}_${cvFile.name}`;
+
+                    const { data: uploadData, error: uploadError } = await supabase.storage
+                        .from('expert-cvs')
+                        .upload(fileName, cvFile, {
+                            cacheControl: '3600',
+                            upsert: false
+                        });
+
+                    if (uploadError) throw uploadError;
+
+                    const cvStoragePath = uploadData.path;
+
+                    // 2. Insert application data into Superbase Table
+                    const { error: insertError } = await supabase
+                        .from('expert_applications')
+                        .insert([
+                            {
+                                full_name: fullName,
+                                email: email,
+                                linkedin_url: linkedinUrl,
+                                cv_storage_path: cvStoragePath,
+                                how_heard: howHeard,
+                                worked_with_scio: workedWithScio,
+                                scio_project_details: scioProjectDetails,
+                                consent_data_privacy: consentDataPrivacy.checked,
+                                consent_ai_analysis: consentAiAnalysis.checked
+                            }
+                        ]);
+
+                    if (insertError) throw insertError;
+
+                    submissionMessage.textContent = 'Application submitted successfully! We will be in touch shortly.';
+                    submissionMessage.style.color = 'green';
+                    form.reset();
+                    toggleSubmitButton();
+                    toggleScioDetails();
+                } catch (error) {
+                    console.error('Submission error:', error.message);
+                    let userErrorMessage = `Error submitting application: ${error.message}. Please try again.`;
+                    if (error.message.includes('duplicate key value violates unique constraint')) {
+                        userErrorMessage = 'It looks like you\'ve already applied with this email address. Please contact us if you need to update your application.';
+                    }
+                    submissionMessage.textContent = userErrorMessage;
+                    submissionMessage.style.color = 'red';
+                } finally {
+                    submitButton.disabled = false;
+                }
+            });
+        }); // End of DOMContentLoaded
     </script>
 </body>
 </html>
