@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join Our Expert Network</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Join Our Expert Network</h1>
+        <form id="expertApplicationForm">
+            <div class="form-group">
+                <label for="fullName">Full Name</label>
+                <input type="text" id="fullName" name="fullName" placeholder="Your full name" required>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" name="email" placeholder="name@example.com" required>
+            </div>
+
+            <div class="form-group">
+                <label for="linkedinUrl">LinkedIn Profile URL</label>
+                <input type="url" id="linkedinUrl" name="linkedinUrl" placeholder="https://linkedin.com/in/yourprofile" required>
+            </div>
+
+            <div class="form-group">
+                <label for="cvFile">Upload Your CV/Resume <span class="accepted-formats">(Accepted formats: .pdf, .doc, .docx)</span></label>
+                <input type="file" id="cvFile" name="cvFile" accept=".pdf,.doc,.docx" required>
+            </div>
+
+            <div class="form-group">
+                <label for="howHeard">How did you hear about us?</label>
+                <select id="howHeard" name="howHeard">
+                    <option value="">Please select</option>
+                    <option value="linkedin">LinkedIn</option>
+                    <option value="referral">Referral</option>
+                    <option value="google_search">Google Search</option>
+                    <option value="event">Event</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Have you worked with SCIO before?</label>
+                <div class="radio-group">
+                    <input type="radio" id="workedScioYes" name="workedScio" value="true" required>
+                    <label for="workedScioYes">Yes</label>
+                    <input type="radio" id="workedScioNo" name="workedScio" value="false" required>
+                    <label for="workedScioNo">No</label>
+                </div>
+                <div id="scioProjectDetailsContainer" class="hidden">
+                    <label for="scioProjectDetails">Please specify the project or capacity:</label>
+                    <textarea id="scioProjectDetails" name="scioProjectDetails" rows="3"></textarea>
+                </div>
+            </div>
+
+            <div class="consent-box privacy-consent">
+                <h2>Data Privacy and Protection</h2>
+                <p>By submitting this application, you agree to our <a href="#" target="_blank">Privacy Policy</a> and consent to the collection and processing of your personal data as described therein. This includes your name, contact information, professional experience, and skills extracted from your CV and LinkedIn profile, for the purpose of evaluating your suitability for our expert network and for ongoing engagement as outlined in our workflow.</p>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="consentDataPrivacy" name="consentDataPrivacy" required>
+                    <label for="consentDataPrivacy">I agree to the Data Privacy and Protection policy.</label>
+                </div>
+            </div>
+
+            <div class="consent-box ai-consent">
+                <h2>AI-Powered CV Analysis</h2>
+                <p>To efficiently process applications and identify suitable candidates, we utilize Artificial Intelligence to analyze your CV and extract key details such as skills, experience, and qualifications. This process helps us streamline our screening and matching. Your CV data will be handled securely and confidentially. Please note that the AI analysis is an initial screening step and is always followed by a manual review.</p>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="consentAiAnalysis" name="consentAiAnalysis" required>
+                    <label for="consentAiAnalysis">I consent to the AI analysis of my CV.</label>
+                </div>
+            </div>
+
+            <button type="submit" id="submitButton" disabled>Submit Application</button>
+            <p id="consentReminder" class="consent-reminder">Please agree to both terms above to enable submission.</p>
+            <p id="submissionMessage" class="submission-message"></p>
+        </form>
+    </div>
+
+    <!-- Load Supabase library FIRST -->
+ <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Your custom script SECOND -->
+    <script>
+        console.log('Supabase CDN script loaded, trying to access Supabase object...');
+        // Check if Supabase object is defined right before using it
+        if (typeof Supabase === 'undefined') {
+            console.error('ERROR: Supabase object is still undefined here!');
+            // You might want to halt execution or show an error message on the page
+        } else {
+            console.log('SUCCESS: Supabase object is defined!', Supabase);
+        }
+
+        // REPLACE WITH YOUR SUPERBASE PROJECT URL AND ANON KEY
+        const SUPABASE_URL = 'https://pvywobxbuwpybsvegzys.supabase.co'; // Your actual URL
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2eXdvYnhidXdweWJzdmVnenlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg1MzY3MzQsImV4cCI6MjA3NDExMjczNH0.f5R0f1o75WQ-5tQXcZ3ckkc5Fs_WiVEsXq-EOpxOhGg'; // Your actual key
+        const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); // This is line 91 (approx)
+
+        // ... (rest of your existing script code) ...
+        const form = document.getElementById('expertApplicationForm');
+        const submitButton = document.getElementById('submitButton');
+        const consentDataPrivacy = document.getElementById('consentDataPrivacy');
+        const consentAiAnalysis = document.getElementById('consentAiAnalysis');
+        const consentReminder = document.getElementById('consentReminder');
+        const workedScioYes = document.getElementById('workedScioYes');
+        const workedScioNo = document.getElementById('workedScioNo');
+        const scioProjectDetailsContainer = document.getElementById('scioProjectDetailsContainer');
+        const submissionMessage = document.getElementById('submissionMessage');
+
+        function toggleSubmitButton() {
+            if (consentDataPrivacy.checked && consentAiAnalysis.checked) {
+                submitButton.disabled = false;
+                consentReminder.style.display = 'none';
+            } else {
+                submitButton.disabled = true;
+                consentReminder.style.display = 'block';
+            }
+        }
+
+        function toggleScioDetails() {
+            if (workedScioYes.checked) {
+                scioProjectDetailsContainer.classList.remove('hidden');
+                scioProjectDetailsContainer.querySelector('textarea').setAttribute('required', 'required');
+            } else {
+                scioProjectDetailsContainer.classList.add('hidden');
+                scioProjectDetailsContainer.querySelector('textarea').removeAttribute('required');
+            }
+        }
+
+        consentDataPrivacy.addEventListener('change', toggleSubmitButton);
+        consentAiAnalysis.addEventListener('change', toggleSubmitButton);
+        workedScioYes.addEventListener('change', toggleScioDetails);
+        workedScioNo.addEventListener('change', toggleScioDetails);
+
+        // Initial state
+        toggleSubmitButton();
+        toggleScioDetails();
+
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            submissionMessage.textContent = 'Submitting your application...';
+            submissionMessage.style.color = 'black';
+            submitButton.disabled = true; // Prevent double submission
+
+            const fullName = document.getElementById('fullName').value;
+            const email = document.getElementById('email').value;
+            const linkedinUrl = document.getElementById('linkedinUrl').value;
+            const cvFile = document.getElementById('cvFile').files[0];
+            const howHeard = document.getElementById('howHeard').value;
+            const workedWithScio = document.querySelector('input[name="workedScio"]:checked').value === 'true';
+            const scioProjectDetails = workedWithScio ? document.getElementById('scioProjectDetails').value : null;
+
+            if (!cvFile) {
+                submissionMessage.textContent = 'Please upload your CV.';
+                submissionMessage.style.color = 'red';
+                submitButton.disabled = false;
+                return;
+            }
+
+            try {
+                // 1. Upload CV to Superbase Storage
+                // Replace special characters in email for a safer file name
+                const safeEmail = email.replace(/[^a-zA-Z0-9]/g, '_');
+                const fileName = `${safeEmail}_${Date.now()}_${cvFile.name}`;
+                
+                const { data: uploadData, error: uploadError } = await supabase.storage
+                    .from('expert-cvs')
+                    .upload(fileName, cvFile, {
+                        cacheControl: '3600',
+                        upsert: false // Set to true if you want to allow overwriting files with the same name
+                    });
+
+                if (uploadError) throw uploadError;
+
+                const cvStoragePath = uploadData.path; // This gives us the path within the bucket
+
+                // 2. Insert application data into Superbase Table
+                const { error: insertError } = await supabase
+                    .from('expert_applications')
+                    .insert([
+                        {
+                            full_name: fullName,
+                            email: email,
+                            linkedin_url: linkedinUrl,
+                            cv_storage_path: cvStoragePath, // Store the path within the bucket
+                            how_heard: howHeard,
+                            worked_with_scio: workedWithScio,
+                            scio_project_details: scioProjectDetails,
+                            consent_data_privacy: consentDataPrivacy.checked,
+                            consent_ai_analysis: consentAiAnalysis.checked
+                        }
+                    ]);
+
+                if (insertError) throw insertError;
+
+                submissionMessage.textContent = 'Application submitted successfully! We will be in touch shortly.';
+                submissionMessage.style.color = 'green';
+                form.reset(); // Clear the form
+                toggleSubmitButton(); // Re-disable submit button until consents are checked again
+                toggleScioDetails(); // Hide project details again
+            } catch (error) {
+                console.error('Submission error:', error.message);
+                // More user-friendly error messages for specific Superbase errors
+                let userErrorMessage = `Error submitting application: ${error.message}. Please try again.`;
+                if (error.message.includes('duplicate key value violates unique constraint')) {
+                    userErrorMessage = 'It looks like you\'ve already applied with this email address. Please contact us if you need to update your application.';
+                }
+                submissionMessage.textContent = userErrorMessage;
+                submissionMessage.style.color = 'red';
+            } finally {
+                submitButton.disabled = false; // Re-enable in case of client-side error before fetch
+            }
+        });
+    </script>
+</body>
+</html>
