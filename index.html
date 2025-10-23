@@ -50,24 +50,26 @@
                     <input type="radio" id="workedScioNo" name="workedScio" value="false" required>
                     <label for="workedScioNo">No</label>
                 </div>
+                <!-- This div is now correctly toggled by the JavaScript -->
                 <div id="scioProjectDetailsContainer" class="hidden">
                     <label for="scioProjectDetails">Please specify the project or capacity:</label>
                     <textarea id="scioProjectDetails" name="scioProjectDetails" rows="3"></textarea>
                 </div>
             </div>
 
-            <div class="consent-box privacy-consent">
+            <div class="consent-box">
                 <h2>Data Privacy and Protection</h2>
-                <p>By submitting this application, you agree to our <a href="#" target="_blank">Privacy Policy</a> and consent to the collection and processing of your personal data as described therein. This includes your name, contact information, professional experience, and skills extracted from your CV and LinkedIn profile, for the purpose of evaluating your suitability for our expert network and for ongoing engagement as outlined in our workflow.</p>
+                <!-- Updated link to privacy.html -->
+                <p>By submitting this application, you agree to our <a href="privacy.html" target="_blank">Privacy Policy</a> and consent to the collection and processing of your personal data as described therein.</p>
                 <div class="checkbox-group">
                     <input type="checkbox" id="consentDataPrivacy" name="consentDataPrivacy" required>
                     <label for="consentDataPrivacy">I agree to the Data Privacy and Protection policy.</label>
                 </div>
             </div>
 
-            <div class="consent-box ai-consent">
+            <div class="consent-box">
                 <h2>AI-Powered CV Analysis</h2>
-                <p>To efficiently process applications and identify suitable candidates, we utilize Artificial Intelligence to analyze your CV and extract key details such as skills, experience, and qualifications. This process helps us streamline our screening and matching. Your CV data will be handled securely and confidentially. Please note that the AI analysis is an initial screening step and is always followed by a manual review.</p>
+                <p>To efficiently process applications, we utilize Artificial Intelligence to analyze your CV and extract key details. This process helps us streamline our screening and matching. Your CV data will be handled securely and confidentially.</p>
                 <div class="checkbox-group">
                     <input type="checkbox" id="consentAiAnalysis" name="consentAiAnalysis" required>
                     <label for="consentAiAnalysis">I consent to the AI analysis of my CV.</label>
@@ -80,12 +82,9 @@
         </form>
     </div>
 
-
-    <!-- Your custom script, now sending to proxy server -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOMContentLoaded event fired. Frontend logic starting.');
-
+            // All of your form's logic now lives safely inside here
             const form = document.getElementById('expertApplicationForm');
             const submitButton = document.getElementById('submitButton');
             const consentDataPrivacy = document.getElementById('consentDataPrivacy');
@@ -96,21 +95,10 @@
             const scioProjectDetailsContainer = document.getElementById('scioProjectDetailsContainer');
             const submissionMessage = document.getElementById('submissionMessage');
 
-            // IMPORTANT: Replace this with the URL of your deployed proxy server (e.g., from Vercel/Render/Fly.io)
-            // For local testing, it might be 'http://localhost:3000/api/submit-application'
-            // When deploying the backend, it will be something like 'https://YOUR_PROXY_SERVER_URL.com/api/submit-application'
+            // IMPORTANT: Make sure this URL points to your deployed backend proxy server
             const PROXY_SERVER_URL = 'http://localhost:3000/api/submit-application'; // CHANGE THIS FOR DEPLOYMENT!
 
-            function toggleSubmitButton() {
-                if (consentDataPrivacy.checked && consentAiAnalysis.checked) {
-                    submitButton.disabled = false;
-                    consentReminder.style.display = 'none';
-                } else {
-                    submitButton.disabled = true;
-                    consentReminder.style.display = 'block';
-                }
-            }
-
+            // --- THIS IS THE FUNCTION TO TOGGLE THE CONDITIONAL FIELD ---
             function toggleScioDetails() {
                 if (workedScioYes.checked) {
                     scioProjectDetailsContainer.classList.remove('hidden');
@@ -121,21 +109,31 @@
                 }
             }
 
+            function toggleSubmitButton() {
+                if (consentDataPrivacy.checked && consentAiAnalysis.checked) {
+                    submitButton.disabled = false;
+                    consentReminder.style.display = 'none';
+                } else {
+                    submitButton.disabled = true;
+                    consentReminder.style.display = 'block';
+                }
+            }
+            
+            // --- EVENT LISTENERS THAT MAKE THE LOGIC WORK ---
             consentDataPrivacy.addEventListener('change', toggleSubmitButton);
             consentAiAnalysis.addEventListener('change', toggleSubmitButton);
             workedScioYes.addEventListener('change', toggleScioDetails);
             workedScioNo.addEventListener('change', toggleScioDetails);
 
-            // Initial state
+            // Set initial state on page load
             toggleSubmitButton();
             toggleScioDetails();
-
 
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 submissionMessage.textContent = 'Submitting your application...';
                 submissionMessage.style.color = 'black';
-                submitButton.disabled = true; // Prevent double submission
+                submitButton.disabled = true;
 
                 const formData = new FormData();
                 formData.append('fullName', document.getElementById('fullName').value);
@@ -153,20 +151,17 @@
                 try {
                     const response = await fetch(PROXY_SERVER_URL, {
                         method: 'POST',
-                        body: formData // FormData automatically sets 'Content-Type': 'multipart/form-data'
+                        body: formData
                     });
-
                     const result = await response.json();
-
                     if (!response.ok) {
                         throw new Error(result.error || 'Unknown server error');
                     }
-
                     submissionMessage.textContent = 'Application submitted successfully! We will be in touch shortly.';
                     submissionMessage.style.color = 'green';
-                    form.reset(); // Clear the form
-                    toggleSubmitButton(); // Re-disable submit button until consents are checked again
-                    toggleScioDetails(); // Hide project details again
+                    form.reset();
+                    toggleSubmitButton();
+                    toggleScioDetails();
                 } catch (error) {
                     console.error('Frontend submission error:', error.message);
                     submissionMessage.textContent = `Error submitting application: ${error.message}. Please try again.`;
@@ -175,7 +170,7 @@
                     submitButton.disabled = false;
                 }
             });
-        }); // End of DOMContentLoaded
+        });
     </script>
 </body>
 </html>
