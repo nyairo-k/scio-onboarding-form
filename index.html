@@ -188,7 +188,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // STEP D: INSERT DATA INTO SUPABASE DATABASE
             const { error: dbError } = await supabaseClient
-                .from('experts_aplication')
+                .from('expert_applications')
                 .insert([{
                     full_name: document.getElementById('fullName').value,
                     email: document.getElementById('email').value,
@@ -226,3 +226,4 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 </body>
 </html>
+
