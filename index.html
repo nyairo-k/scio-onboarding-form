@@ -82,95 +82,125 @@
         </form>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // All of your form's logic now lives safely inside here
-            const form = document.getElementById('expertApplicationForm');
-            const submitButton = document.getElementById('submitButton');
-            const consentDataPrivacy = document.getElementById('consentDataPrivacy');
-            const consentAiAnalysis = document.getElementById('consentAiAnalysis');
-            const consentReminder = document.getElementById('consentReminder');
-            const workedScioYes = document.getElementById('workedScioYes');
-            const workedScioNo = document.getElementById('workedScioNo');
-            const scioProjectDetailsContainer = document.getElementById('scioProjectDetailsContainer');
-            const submissionMessage = document.getElementById('submissionMessage');
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-            // IMPORTANT: Make sure this URL points to your deployed backend proxy server
-            const PROXY_SERVER_URL = 'http://localhost:3000/api/submit-application'; // CHANGE THIS FOR DEPLOYMENT!
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    
+    const SUPABASE_URL = 'https://pvywobxbuwpybsvegzys.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2eXdvYnhidXdweWJzdmVnenlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg1MzY3MzQsImV4cCI6MjA3NDExMjczNH0.f5R0f1o75WQ-5tQXcZ3ckkc5Fs_WiVEsXq-EOpxOhGg';
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-            // --- THIS IS THE FUNCTION TO TOGGLE THE CONDITIONAL FIELD ---
-            function toggleScioDetails() {
-                if (workedScioYes.checked) {
-                    scioProjectDetailsContainer.classList.remove('hidden');
-                    scioProjectDetailsContainer.querySelector('textarea').setAttribute('required', 'required');
-                } else {
-                    scioProjectDetailsContainer.classList.add('hidden');
-                    scioProjectDetailsContainer.querySelector('textarea').removeAttribute('required');
-                }
-            }
+    // ---------------------------------------------------------
+    // 3. UI LOGIC (Toggles & Buttons)
+    // ---------------------------------------------------------
+    const form = document.getElementById('expertApplicationForm');
+    const submitButton = document.getElementById('submitButton');
+    const consentDataPrivacy = document.getElementById('consentDataPrivacy');
+    const consentAiAnalysis = document.getElementById('consentAiAnalysis');
+    const consentReminder = document.getElementById('consentReminder');
+    const workedScioYes = document.getElementById('workedScioYes');
+    const workedScioNo = document.getElementById('workedScioNo');
+    const scioProjectDetailsContainer = document.getElementById('scioProjectDetailsContainer');
+    const submissionMessage = document.getElementById('submissionMessage');
 
-            function toggleSubmitButton() {
-                if (consentDataPrivacy.checked && consentAiAnalysis.checked) {
-                    submitButton.disabled = false;
-                    consentReminder.style.display = 'none';
-                } else {
-                    submitButton.disabled = true;
-                    consentReminder.style.display = 'block';
-                }
-            }
-            
-            // --- EVENT LISTENERS THAT MAKE THE LOGIC WORK ---
-            consentDataPrivacy.addEventListener('change', toggleSubmitButton);
-            consentAiAnalysis.addEventListener('change', toggleSubmitButton);
-            workedScioYes.addEventListener('change', toggleScioDetails);
-            workedScioNo.addEventListener('change', toggleScioDetails);
+    function toggleScioDetails() {
+        if (workedScioYes.checked) {
+            scioProjectDetailsContainer.classList.remove('hidden');
+            const textArea = scioProjectDetailsContainer.querySelector('textarea');
+            if(textArea) textArea.setAttribute('required', 'required');
+        } else {
+            scioProjectDetailsContainer.classList.add('hidden');
+            const textArea = scioProjectDetailsContainer.querySelector('textarea');
+            if(textArea) textArea.removeAttribute('required');
+        }
+    }
 
-            // Set initial state on page load
+    function toggleSubmitButton() {
+        if (consentDataPrivacy.checked && consentAiAnalysis.checked) {
+            submitButton.disabled = false;
+            consentReminder.style.display = 'none';
+        } else {
+            submitButton.disabled = true;
+            consentReminder.style.display = 'block';
+        }
+    }
+    
+    consentDataPrivacy.addEventListener('change', toggleSubmitButton);
+    consentAiAnalysis.addEventListener('change', toggleSubmitButton);
+    workedScioYes.addEventListener('change', toggleScioDetails);
+    workedScioNo.addEventListener('change', toggleScioDetails);
+
+    // Initial State
+    toggleSubmitButton();
+    toggleScioDetails();
+
+    // ---------------------------------------------------------
+    // 4. SUBMISSION LOGIC (The "Fire and Forget")
+    // ---------------------------------------------------------
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        // UI Feedback
+        submissionMessage.textContent = 'Uploading and submitting...';
+        submissionMessage.style.color = 'black';
+        submitButton.disabled = true;
+
+        try {
+            // A. Prepare Data
+            const cvFile = document.getElementById('cvFile').files[0];
+            const timestamp = Date.now();
+            // Sanitize filename: "My Resume.pdf" -> "173200500_My_Resume.pdf"
+            const cleanFileName = `${timestamp}_${cvFile.name.replace(/\s/g, '_')}`;
+
+            // B. Upload CV to Supabase Storage
+            const { data: fileData, error: fileError } = await supabase
+                .storage
+                .from('cv_submissions')
+                .upload(cleanFileName, cvFile);
+
+            if (fileError) throw new Error('CV Upload failed: ' + fileError.message);
+
+            // C. Insert Data into Database
+            // Note: We map HTML input IDs to Database Column Names here
+            const { error: dbError } = await supabase
+                .from('experts_aplication')
+                .insert([
+                    {
+                        full_name: document.getElementById('fullName').value,
+                        email: document.getElementById('email').value,
+                        linkedin_url: document.getElementById('linkedinUrl').value,
+                        how_heard: document.getElementById('howHeard').value,
+                        
+                        // Convert string "true"/"false" to Boolean
+                        worked_with_scio: document.querySelector('input[name="workedScio"]:checked').value === 'true',
+                        scio_project_details: document.getElementById('scioProjectDetails').value,
+                        
+                        // Metadata
+                        consent_data_privacy: consentDataPrivacy.checked,
+                        consent_ai_analysis: consentAiAnalysis.checked,
+                        cv_storage_path: fileData.path, // The link to the file we just uploaded
+                        extraction_status: 'Pending' // Trigger for Phase 2
+                    }
+                ]);
+
+            if (dbError) throw new Error('Database Insert failed: ' + dbError.message);
+
+            // D. Success
+            submissionMessage.textContent = 'Application submitted successfully! Welcome to the network.';
+            submissionMessage.style.color = 'green';
+            form.reset();
+            // Reset UI states
             toggleSubmitButton();
             toggleScioDetails();
 
-            form.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                submissionMessage.textContent = 'Submitting your application...';
-                submissionMessage.style.color = 'black';
-                submitButton.disabled = true;
-
-                const formData = new FormData();
-                formData.append('fullName', document.getElementById('fullName').value);
-                formData.append('email', document.getElementById('email').value);
-                formData.append('linkedinUrl', document.getElementById('linkedinUrl').value);
-                formData.append('cvFile', document.getElementById('cvFile').files[0]);
-                formData.append('howHeard', document.getElementById('howHeard').value);
-                formData.append('workedScio', document.querySelector('input[name="workedScio"]:checked').value);
-                if (document.querySelector('input[name="workedScio"]:checked').value === 'true') {
-                    formData.append('scioProjectDetails', document.getElementById('scioProjectDetails').value);
-                }
-                formData.append('consentDataPrivacy', consentDataPrivacy.checked);
-                formData.append('consentAiAnalysis', consentAiAnalysis.checked);
-
-                try {
-                    const response = await fetch(PROXY_SERVER_URL, {
-                        method: 'POST',
-                        body: formData
-                    });
-                    const result = await response.json();
-                    if (!response.ok) {
-                        throw new Error(result.error || 'Unknown server error');
-                    }
-                    submissionMessage.textContent = 'Application submitted successfully! We will be in touch shortly.';
-                    submissionMessage.style.color = 'green';
-                    form.reset();
-                    toggleSubmitButton();
-                    toggleScioDetails();
-                } catch (error) {
-                    console.error('Frontend submission error:', error.message);
-                    submissionMessage.textContent = `Error submitting application: ${error.message}. Please try again.`;
-                    submissionMessage.style.color = 'red';
-                } finally {
-                    submitButton.disabled = false;
-                }
-            });
-        });
-    </script>
-</body>
-</html>
+        } catch (error) {
+            console.error('Submission Error:', error);
+            submissionMessage.textContent = `Error: ${error.message}`;
+            submissionMessage.style.color = 'red';
+        } finally {
+            submitButton.disabled = false;
+        }
+    });
+});
+</script>
