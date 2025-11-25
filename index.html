@@ -91,33 +91,49 @@ document.addEventListener('DOMContentLoaded', function() {
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2eXdvYnhidXdweWJzdmVnenlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg1MzY3MzQsImV4cCI6MjA3NDExMjczNH0.f5R0f1o75WQ-5tQXcZ3ckkc5Fs_WiVEsXq-EOpxOhGg';
     const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // ---------------------------------------------------------
-    // 3. UI LOGIC (Toggles & Buttons)
-    // ---------------------------------------------------------
-    const form = document.getElementById('expertApplicationForm');
+   const form = document.getElementById('expertApplicationForm');
     const submitButton = document.getElementById('submitButton');
-    const consentDataPrivacy = document.getElementById('consentDataPrivacy');
-    const consentAiAnalysis = document.getElementById('consentAiAnalysis');
-    const consentReminder = document.getElementById('consentReminder');
+    
+    
     const workedScioYes = document.getElementById('workedScioYes');
     const workedScioNo = document.getElementById('workedScioNo');
-    const scioProjectDetailsContainer = document.getElementById('scioProjectDetailsContainer');
-    const submissionMessage = document.getElementById('submissionMessage');
+    const scioDetailsContainer = document.getElementById('scioProjectDetailsContainer');
+    const scioDetailsInput = document.getElementById('scioProjectDetails');
 
-    function toggleScioDetails() {
+    // Checkboxes
+    const consentPrivacy = document.getElementById('consentDataPrivacy');
+    const consentAi = document.getElementById('consentAiAnalysis');
+    const consentReminder = document.getElementById('consentReminder');
+
+    // --- LOGIC 1: TOGGLE 'WORKED WITH SCIO' ---
+    function handleScioToggle() {
         if (workedScioYes.checked) {
-            scioProjectDetailsContainer.classList.remove('hidden');
-            const textArea = scioProjectDetailsContainer.querySelector('textarea');
-            if(textArea) textArea.setAttribute('required', 'required');
+            // Show the box
+            scioDetailsContainer.style.display = 'block'; 
+            // Make it required so they can't submit empty
+            scioDetailsInput.setAttribute('required', 'true');
         } else {
-            scioProjectDetailsContainer.classList.add('hidden');
-            const textArea = scioProjectDetailsContainer.querySelector('textarea');
-            if(textArea) textArea.removeAttribute('required');
+            // Hide the box
+            scioDetailsContainer.style.display = 'none'; 
+            // Not required anymore
+            scioDetailsInput.removeAttribute('required');
+            scioDetailsInput.value = ''; // Clean it up
         }
     }
 
-    function toggleSubmitButton() {
-        if (consentDataPrivacy.checked && consentAiAnalysis.checked) {
+    // Attach listeners to both radio buttons
+    if(workedScioYes && workedScioNo) {
+        workedScioYes.addEventListener('change', handleScioToggle);
+        workedScioNo.addEventListener('change', handleScioToggle);
+        // Run once on load to set initial state
+        handleScioToggle();
+    } else {
+        console.error("Error: Could not find Radio Buttons in HTML");
+    }
+
+    // --- LOGIC 2: ENABLE SUBMIT BUTTON ---
+    function checkConsents() {
+        if (consentPrivacy.checked && consentAi.checked) {
             submitButton.disabled = false;
             consentReminder.style.display = 'none';
         } else {
@@ -125,81 +141,84 @@ document.addEventListener('DOMContentLoaded', function() {
             consentReminder.style.display = 'block';
         }
     }
-    
-    consentDataPrivacy.addEventListener('change', toggleSubmitButton);
-    consentAiAnalysis.addEventListener('change', toggleSubmitButton);
-    workedScioYes.addEventListener('change', toggleScioDetails);
-    workedScioNo.addEventListener('change', toggleScioDetails);
 
-    // Initial State
-    toggleSubmitButton();
-    toggleScioDetails();
+    if(consentPrivacy && consentAi) {
+        consentPrivacy.addEventListener('change', checkConsents);
+        consentAi.addEventListener('change', checkConsents);
+        // Run once on load
+        checkConsents();
+    } else {
+        console.error("Error: Could not find Consent Checkboxes in HTML");
+    }
 
-    // ---------------------------------------------------------
-    // 4. SUBMISSION LOGIC (The "Fire and Forget")
-    // ---------------------------------------------------------
+    // --- LOGIC 3: FORM SUBMISSION ---
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
+        console.log("Submit clicked.");
+
+        const submissionMessage = document.getElementById('submissionMessage');
+        const originalBtnText = submitButton.innerText;
+
         // UI Feedback
-        submissionMessage.textContent = 'Uploading and submitting...';
-        submissionMessage.style.color = 'black';
         submitButton.disabled = true;
+        submitButton.innerText = "Uploading...";
+        submissionMessage.textContent = 'Processing your application...';
+        submissionMessage.style.color = 'black';
 
         try {
-            // A. Prepare Data
+            // 1. Get the file
             const cvFile = document.getElementById('cvFile').files[0];
-            const timestamp = Date.now();
-            // Sanitize filename: "My Resume.pdf" -> "173200500_My_Resume.pdf"
-            const cleanFileName = `${timestamp}_${cvFile.name.replace(/\s/g, '_')}`;
+            if (!cvFile) throw new Error("Please select a file.");
 
-            // B. Upload CV to Supabase Storage
-            const { data: fileData, error: fileError } = await supabase
-                .storage
+            // 2. Upload File
+            const fileName = `${Date.now()}_${cvFile.name.replace(/\s/g, '_')}`;
+            const { data: fileData, error: fileError } = await supabase.storage
                 .from('cv_submissions')
-                .upload(cleanFileName, cvFile);
+                .upload(fileName, cvFile);
 
-            if (fileError) throw new Error('CV Upload failed: ' + fileError.message);
+            if (fileError) throw fileError;
 
-            // C. Insert Data into Database
-            // Note: We map HTML input IDs to Database Column Names here
+            // 3. Prepare Data
+            // Handle the radio button value safely
+            let workedWithScioValue = false;
+            if(document.querySelector('input[name="workedScio"]:checked')) {
+                workedWithScioValue = document.querySelector('input[name="workedScio"]:checked').value === 'true';
+            }
+
+            // 4. Insert into Database
             const { error: dbError } = await supabase
                 .from('experts_aplication')
-                .insert([
-                    {
-                        full_name: document.getElementById('fullName').value,
-                        email: document.getElementById('email').value,
-                        linkedin_url: document.getElementById('linkedinUrl').value,
-                        how_heard: document.getElementById('howHeard').value,
-                        
-                        // Convert string "true"/"false" to Boolean
-                        worked_with_scio: document.querySelector('input[name="workedScio"]:checked').value === 'true',
-                        scio_project_details: document.getElementById('scioProjectDetails').value,
-                        
-                        // Metadata
-                        consent_data_privacy: consentDataPrivacy.checked,
-                        consent_ai_analysis: consentAiAnalysis.checked,
-                        cv_storage_path: fileData.path, // The link to the file we just uploaded
-                        extraction_status: 'Pending' // Trigger for Phase 2
-                    }
-                ]);
+                .insert([{
+                    full_name: document.getElementById('fullName').value,
+                    email: document.getElementById('email').value,
+                    linkedin_url: document.getElementById('linkedinUrl').value,
+                    how_heard: document.getElementById('howHeard').value,
+                    worked_with_scio: workedWithScioValue,
+                    scio_project_details: document.getElementById('scioProjectDetails').value,
+                    consent_data_privacy: consentPrivacy.checked,
+                    consent_ai_analysis: consentAi.checked,
+                    cv_storage_path: fileData.path,
+                    extraction_status: 'Pending'
+                }]);
 
-            if (dbError) throw new Error('Database Insert failed: ' + dbError.message);
+            if (dbError) throw dbError;
 
-            // D. Success
-            submissionMessage.textContent = 'Application submitted successfully! Welcome to the network.';
+            // 5. Success
+            submissionMessage.textContent = 'Success! Application received.';
             submissionMessage.style.color = 'green';
             form.reset();
-            // Reset UI states
-            toggleSubmitButton();
-            toggleScioDetails();
+            
+            // Reset UI logic
+            handleScioToggle();
+            checkConsents();
+            submitButton.innerText = originalBtnText;
 
         } catch (error) {
             console.error('Submission Error:', error);
-            submissionMessage.textContent = `Error: ${error.message}`;
+            submissionMessage.textContent = 'Error: ' + error.message;
             submissionMessage.style.color = 'red';
-        } finally {
             submitButton.disabled = false;
+            submitButton.innerText = originalBtnText;
         }
     });
 });
